@@ -4,7 +4,6 @@ import { withStyles } from '@material-ui/core/styles';
 import classnames from 'classnames';
 import Card from '@material-ui/core/Card';
 import CardHeader from '@material-ui/core/CardHeader';
-//import CardMedia from '@material-ui/core/CardMedia';
 import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
 import Collapse from '@material-ui/core/Collapse';
@@ -16,10 +15,11 @@ import FavoriteIcon from '@material-ui/icons/Favorite';
 import ShareIcon from '@material-ui/icons/Share';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
+//import copy from "copy-paste-win32fix";
 
 const styles = theme => ({
   card: {
-    maxWidth: 400,
+    maxWidth: 400
   },
   media: {
     height: 0,
@@ -44,13 +44,36 @@ const styles = theme => ({
 });
 
 class ReviewCard extends React.Component {
-  state = { expanded: false };
-
-  handleExpandClick = () => {
+  state = { expanded: false , favouried: {}};
+/**
+ * Handles Card Expand Toogle
+ * @memberof ReviewCard
+ */
+handleExpandClick = () => {
     this.setState({ expanded: !this.state.expanded });
   };
 
-  getCurrentDate = (() => {
+/**
+ * Pass the fav joke to the parent / container component
+ * @memberof ReviewCard
+ */
+handleFevClick = () => {
+    this.props.addToFavourites(this.props.joke)
+};
+
+/**
+ * Copy joke to clipboard
+ * @memberof ReviewCard
+ */
+// handleShare = () => {
+//   copy(this.props.joke.value);
+// }
+
+/**
+ * Get current date
+ * @memberof ReviewCard
+ */
+getCurrentDate = (() => {
     var today = new Date();
     var dd = today.getDate();
     var mm = today.getMonth() + 1; //January is 0!
@@ -95,7 +118,7 @@ class ReviewCard extends React.Component {
             </Typography>
           </CardContent>
           <CardActions className={classes.actions} disableActionSpacing>
-            <IconButton aria-label="Add to favorites">
+            <IconButton aria-label="Add to favorites" onClick={this.handleFevClick}>
               <FavoriteIcon color={this.props.isFev}/>
             </IconButton>
             <IconButton aria-label="Share">

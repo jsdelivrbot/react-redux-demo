@@ -15,23 +15,24 @@ import Divider from '@material-ui/core/Divider';
 import MenuIcon from '@material-ui/icons/Menu';
 import Grid from '@material-ui/core/Grid';
 import withRoot from '../withRoot';
-import SearchField from '../components/search.field';
+import SearchForm from '../components/search.form';
 import FullWidthGrid from '../components/layout.grid';
+import WelcomeGrid from '../components/welcome'
 import LinearQueryLoading from '../components/query.loading';
 import RandomJokeDialog from '../components/random.joke.dialog';
+import AppSnackbar from '../components/app.snack.bar';
 import {
   addToFavorites
-//, removeFromFavorites
-, fetchJokes
-, fetchCategories
-, fetchRandomJoke
-, receiveJokeFailed
-, switchCategory
-//, cardCollapseToogle
-//, shareJoke
-, dialogOpen
-, dialogClose
-, mobileToogle } from '../actions/index'
+  , removeFromFavorites
+  , fetchJokes
+  , fetchCategories
+  , fetchRandomJoke
+  , receiveJokeFailed
+  , dialogToogle
+  , mobileToogle
+  , searchTextOnChange
+  , snackBarToogle
+} from '../actions'
 
 /*
  *___Action_Creators___
@@ -100,81 +101,71 @@ const styles = theme => ({
 });
 
 class App extends React.Component {
-  /**
-   * Lifecycle Method
-   * @memberof App
-   */
-  componentDidMount = () => {
+
+/**
+ * @memberof App
+ */
+componentDidMount = () => {
     const { dispatch } = this.props;
-    console.log('Component will mount');
-    console.log(this.props);
     dispatch(fetchCategories());
   }
 
-  componentWillReceiveProps = (nextProps) => {
-    console.log('Component will receive props');
-    if (nextProps.categories !== this.props.categories) {
+/**
+ * @memberof App
+ */
+componentWillReceiveProps = (nextProps) => {
+    if (nextProps.categories.length !== this.props.categories.length) {
       const { dispatch } = nextProps
       dispatch(fetchCategories());
     }
   }
 
   /**
-   *Lifecycle Methods
+   *Handle Drawer Toogle
    * @memberof App
-   **/
-  componentWillMount = () => {
-    const { dispatch } = this.props;
-    dispatch(fetchCategories());
-  }
-
-/**
- * Lifecycle Method
- * @param {*} prevProps
- * @memberof App
- */
-componentDidUpdate = (prevProps) => {
-    if (this.props.categories !== prevProps.categories) {
-      const { dispatch } = this.props
-      dispatch(fetchCategories())
-    }
-  }
-
-/**
- *Handle Drawer Toogle
- * @memberof App
- */
-handleDrawerToggle = () => {
-    //this.setprops({ mobileOpen: !this.props.mobileOpen });
+   */
+  handleDrawerToggle = () => {
     this.props.dispatch(mobileToogle());
   };
 
-/**
- *Fired when the user types into the search box
- * @memberof App
- */
-handleSearchOnChange = ((event) => {
-    if (event.target.value) {
-      this.props.dispatch(fetchJokes(event.target.value));
+  /**
+   *Handle Enter Key Press on the Searchbox
+   * @memberof App
+   */
+  handleKeyPress = (event) => {
+    const { dispatch } = this.props;
+    if (event.target.value && event.key === 'Enter') {
+      dispatch(fetchJokes(event.target.value));
     } else {
-      this.props.dispatch(receiveJokeFailed());
+      dispatch(receiveJokeFailed());
     }
-  });
+  };
 
-/**
- *Handle the opening of our joke dialog
- * @memberof App
- */
-handleOpenDialog = () => {
-    this.props.dispatch(dialogOpen())
+  handleSearchOnSubmit = () => {
+    const { dispatch, searchText } = this.props;
+    if (searchText && searchText !== "") {
+      dispatch(fetchJokes(searchText));
+    } else {
+      dispatch(receiveJokeFailed());
+    }
   };
 
 /**
- * Fired when our dialog is closed setting props to dialogOpen: false
+ * Update state Search Text using the input onChange event 
  * @memberof App
  */
-handleCloseDialog = () => {
-    this.props.dispatch(dialogClose());
+handleSearchTextOnChange = (text) => {
+    const {dispatch} = this.props;
+    dispatch(searchTextOnChange(text));
+  }
+
+  /**
+   *Handle the opening / closing of our joke dialog
+   * @memberof App
+   */
+  handleDialogToogleDialog = () => {
+    const { dispatch } = this.props;
+    dispatch(dialogToogle());
   };
 
   /**
@@ -182,48 +173,106 @@ handleCloseDialog = () => {
    * @memberof App
    */
   handleRefreshJoke = (category) => {
-    this.props.dispatch(fetchRandomJoke(category));
+    const { dispatch } = this.props;
+    dispatch(fetchRandomJoke(category));
   }
-/**
- *Fired when the category list is clicked
- * @memberof App
- */
-handleCategoryClick = (value) => {
-    this.props.dispatch(switchCategory(value));
-    this.props.dispatch(fetchRandomJoke(value));
+
+  /**
+   *Fired when the category list is clicked
+   * @memberof App
+   */
+  handleCategoryClick = (category) => {
+    const { dispatch } = this.props;
+    dispatch(dialogToogle());
+    dispatch(mobileToogle());
+    dispatch(fetchRandomJoke(category));
   };
 
-/**
- * Add joke to favourites
+  /**
+   * Add joke to favourites
+   * @memberof App
+   */
+  handleFavourites = (joke) => {
+    const { dispatch } = this.props;
+    dispatch(addToFavorites(joke));
+    //dispatch(handleFavourites(joke, favourites));
+  };
+
+ /**
+ * Add / Remove joke from fevs
  * @memberof App
  */
 handleAddToFavourites = (joke) => {
-    this.props.dispatch(addToFavorites(joke));
+    const { dispatch, favourites } = this.props;
+      if(favourites.indexOf(joke) === -1){
+        //add joke to the current array
+       dispatch(addToFavorites(joke));
+       dispatch(snackBarToogle());
+      }
+      else
+      {
+        //remove joke from current array
+        dispatch(removeFromFavorites(joke.id));
+        dispatch(snackBarToogle());
+      }
+  }
+
+  messageToogle = (event, reason) => {
+    const { dispatch } = this.props;
+    if (reason === 'clickaway') {
+      return;
+    }
+    dispatch(snackBarToogle());
   };
 
-/**
- * Sort Categories into a Material UI List Component
- * @memberof App
- */
-setupCategories = () => {
-
-    const listItems = this.props.categories.map((category, index, array) =>
-      <ListItem button key={index} onClick={this.handleCategoryClick.bind(this, category)}>
-        <ListItemText primary={this.capitalizeFirstLetter(category)} />
-      </ListItem>
-    );
-
+  showMessages = (variant = 'success' || 'warning' || 'error' ||'info', message, vertical =  "top" | "center" | "bottom", horizontal = "left" | "center" | "right") => {
+    const {snackbarOpen} = this.props;
     return (
-      <div>{listItems}</div>
+      <AppSnackbar
+        variant={variant}
+        message={message}
+        open={snackbarOpen}
+        vertical={vertical}
+        horizontal={horizontal}
+        handleClose={this.messageToogle.bind(this)}
+      />
     );
+  }
+
+  /**
+   * Sort Categories into a Material UI List Component
+   * @memberof App
+   */
+  setupCategories = () => {
+    //isCategoriesFetching
+    const isEmpty = this.props.categories.length === 0 || this.props.isCategoriesFetching;
+
+    if (!isEmpty) {
+      const listItems = this.props.categories.map((category, index, array) =>
+        <ListItem button key={index} onClick={this.handleCategoryClick.bind(this, category)}>
+          <ListItemText primary={this.capitalizeFirstLetter(category)} />
+        </ListItem>
+      );
+
+      return (
+        <div>{listItems}</div>
+      );
+    }
+    else {
+      return (<div>
+        <ListItem>
+          <ListItemText primary="Loading..." />
+        </ListItem>
+      </div>)
+    }
 
   };
 
-/**
- * Capitalize the first letter in an char sequence
- * @memberof App
- */
-capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+  /**
+   * Capitalize the first letter in an char sequence
+   * @memberof App
+   */
+  capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
   render() {
     const { classes, theme } = this.props;
@@ -235,8 +284,7 @@ capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
         <List>
           {this.setupCategories()}
         </List>
-      </div>
-    );
+      </div>);
 
     return (
       <div className={classes.root}>
@@ -260,12 +308,8 @@ capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
             anchor={theme.direction === 'rtl' ? 'right' : 'left'}
             open={this.props.mobileOpen}
             onClose={this.handleDrawerToggle}
-            classes={{
-              paper: classes.drawerPaper,
-            }}
-            ModalProps={{
-              keepMounted: true, // Better open performance on mobile.
-            }}>
+            classes={{paper: classes.drawerPaper,}}
+            ModalProps={{keepMounted: true,}}>
             {drawer}
           </Drawer>
         </Hidden>
@@ -283,23 +327,39 @@ capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
           <div className={classes.toolbar} />
           {!this.props.dialogOpen && <LinearQueryLoading isQueryLoading={this.props.isFetching} />}
           <div className={classes.root}>
-            <RandomJokeDialog
-              open={this.props.dialogOpen}
-              category={this.capitalizeFirstLetter(this.props.selectedCategory)}
-              joke={this.props.dialogJoke}
-              iconClass={classes.rightIcon}
-              isLoading={this.props.isFetching}
-              onClose={this.handleCloseDialog}
-              onOpen={this.handleOpenDialog}
-              onLike={this.handleAddToFavourites}
-              onFetch={this.handleRefreshJoke(this.props.selectedCategory)} />
-            <Grid container spacing={24}>
+            {this.props.selectedCategory &&
+              <RandomJokeDialog
+                open={this.props.dialogOpen}
+                category={this.capitalizeFirstLetter(this.props.selectedCategory)}
+                joke={this.props.dialogJoke}
+                iconClass={classes.rightIcon}
+                isLoading={this.props.isRandomFetching}
+                onClose={this.handleDialogToogleDialog}
+                onOpen={this.handleDialogToogleDialog}
+                onLike={this.handleAddToFavourites.bind(this, this.props.dialogJoke)}
+                onFetch={this.handleRefreshJoke.bind(this, this.props.selectedCategory)}/>}
+              
+            <Grid container spacing={24}
+              alignItems='stretch'
+              direction='row'
+              justify='center'>
+              {this.showMessages('info', 'Action Completed', "center", "center" )}
               <Grid item xs={12}>
-                <SearchField onChange={this.handleSearchOnChange.bind(this)} />
+                <SearchForm onChange={this.handleSearchTextOnChange} onSubmit={this.handleSearchOnSubmit} onHandleKeyPress={this.handleKeyPress.bind(this)}/>
               </Grid>
               <Grid item xs={12}>
-                {this.props.searchResult && <FullWidthGrid jokes={this.props.searchResult} />}
-                {this.props.favourites && !this.props.searchResult && <FullWidthGrid isFev={'secondary'} jokes={this.props.favourites} />}
+                {this.props.searchResult.length !== 0 &&
+                 <FullWidthGrid jokes={this.props.searchResult} isFetching={this.props.isFetching} addToFavourites={this.handleAddToFavourites}/>}
+                {
+                  this.props.favourites.length > 0 && 
+                  this.props.searchResult.length === 0 && 
+                  <FullWidthGrid isFev={'secondary'} jokes={this.props.favourites} addToFavourites={this.handleAddToFavourites}/>
+                }
+                 {
+                  this.props.searchResult.length === 0 &&
+                  this.props.favourites.length === 0 &&
+                   <WelcomeGrid/>
+                 }
               </Grid>
             </Grid>
           </div>
@@ -313,37 +373,59 @@ capitalizeFirstLetter = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 App.propTypes = {
   classes: PropTypes.object.isRequired,
   theme: PropTypes.object.isRequired,
-  categories: PropTypes.array.isRequired, 
-  searchResult: PropTypes.array.isRequired, 
-  favourites: PropTypes.array.isRequired, 
-  selectedCategory: PropTypes.string.isRequired, 
-  mobileOpen: PropTypes.bool.isRequired, 
-  dialogOpen: PropTypes.bool.isRequired, 
-  isFetching: PropTypes.bool.isRequired, 
-  dialogJoke: PropTypes.object.isRequired,
-  dispatch: PropTypes.func.isRequired 
+  categories: PropTypes.array.isRequired,
+  isCategoriesFetching: PropTypes.bool.isRequired,
+  searchResult: PropTypes.array.isRequired,
+  favourites: PropTypes.array.isRequired,
+  selectedCategory: PropTypes.string,
+  mobileOpen: PropTypes.bool.isRequired,
+  dialogOpen: PropTypes.bool.isRequired,
+  isFetching: PropTypes.bool.isRequired,
+  isRandomFetching: PropTypes.bool.isRequired,
+  dialogJoke: PropTypes.object,
+  dispatch: PropTypes.func.isRequired
 };
 
-const mapStateToProps = (state) => {
+const mapStateToProps = state => {
+  const {
+    jokeCategories: { categories, isCategoriesFetching },
+    jokeRequests: { searchResult, isFetching, isRandomFetching, dialogJoke, selectedCategory, searchText },
+    jokesByFavouried: favourites,
+    alium: {
+      mobileOpen
+    },
+    jokeDialogToogle: { dialogOpen },
+    appSnackBar: {snackbarOpen}
+  } = state;
 
-  const { 
-    categories, 
-    searchResult, 
-    favourites, 
-    selectedCategory, 
-    mobileOpen, 
-    dialogOpen, 
-    isFetching, 
-    dialogJoke } = state
+  console.log({
+    categories,
+    isCategoriesFetching,
+    searchResult,
+    favourites,
+    selectedCategory,
+    mobileOpen,
+    dialogOpen,
+    isRandomFetching,
+    isFetching,
+    dialogJoke,
+    searchText,
+    snackbarOpen
+  });
+
   return {
-    categories, 
-    searchResult, 
-    favourites, 
-    selectedCategory, 
-    mobileOpen, 
-    dialogOpen, 
-    isFetching, 
-    dialogJoke 
+    categories,
+    isCategoriesFetching,
+    searchResult,
+    favourites,
+    selectedCategory,
+    mobileOpen,
+    dialogOpen,
+    isFetching,
+    isRandomFetching,
+    dialogJoke,
+    searchText,
+    snackbarOpen
   }
 }
 
